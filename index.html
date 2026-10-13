@@ -139,10 +139,10 @@ pre.small{margin:0;background:var(--term);color:var(--term-fg);border-radius:6px
       <ol class="steps">
         <li>Stops if you are not root or the interface does not exist (lists the real ones).</li>
         <li>Installs <code>tshark</code> and <code>lftp</code> only if missing. The "non-superusers capture" prompt is answered No automatically.</li>
-        <li>Creates the file in <code>/home/qadmin</code> with 777 permissions and starts the capture.</li>
+        <li>Saves the capture in <code>/tmp/qxcap</code> (works on both 20.04 and 24.04) and stops without uploading if the capture fails.</li>
         <li>Ctrl+C stops tshark only. The script keeps going and uploads.</li>
         <li>Uploads to the FTP <code>files/</code> folder, giving up after about a minute if the server can't reach it.</li>
-        <li>Deletes the local pcap only after a successful upload. If the upload fails, the file stays in <code>/home/qadmin</code>.</li>
+        <li>Deletes the local pcap only after a successful upload. If the upload fails, the file stays in <code>/tmp/qxcap</code> until the server reboots.</li>
       </ol>
     </section>
   </div>
@@ -159,7 +159,7 @@ const ipOk = s => /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(s) && s.sp
 function build(){
   let name = $("name").value.trim().replace(/\.pcapn?g?$/i,"").replace(/[^A-Za-z0-9._-]+/g,"_") || "capture";
   const file = name + ".pcap";
-  const path = "/home/qadmin/" + file;
+  const path = "/tmp/qxcap/" + file;
   const ip = $("ip").value.trim();
   const sel = $("ifacesel").value;
   $("iface").hidden = sel !== "Other";
@@ -200,7 +200,7 @@ fi
 if command -v lftp >/dev/null 2>&1; then echo "[ok] lftp already installed"; else
   echo "[..] Installing lftp"; apt-get install -y lftp || echo "[!] lftp install failed. Capture will still run; upload it manually."
 fi
-touch "$F" && chmod 777 "$F"
+mkdir -p /tmp/qxcap && chmod 777 /tmp/qxcap && rm -f "$F"
 echo
 echo "=== Capturing on $IFACE  filter: \${FILTER:-none}  ->  $F"
 echo "=== ${durOk ? `Stops automatically after ${dur}s, or press` : "Press"} Ctrl+C to stop and upload"
@@ -209,6 +209,7 @@ trap ':' INT
 ${tsh}
 trap - INT
 echo
+if [ ! -s "$F" ]; then echo "[x] Capture failed, nothing was saved. Check the tshark error above. Nothing was uploaded."; exit 1; fi
 echo "[ok] Capture saved: $F ($(du -h "$F" | cut -f1))"
 UP=0
 if command -v lftp >/dev/null 2>&1; then

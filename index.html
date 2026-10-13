@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Qumulex PCAP Capture Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: two-column workbench — inputs on the left, live generated command on the right; stacks on phones */
+:root{
+  --bg:#f3f5f7; --panel:#ffffff; --fg:#17202a; --muted:#5b6876; --line:#d8dee5;
+  --accent:#0b6e8a; --accent-ink:#ffffff; --term:#0f1720; --term-fg:#d6e2ea; --term-dim:#7d8e9c;
+  --ok:#1f7a4a; --warn:#a15c00; --warn-bg:#fff4e2;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1318; --panel:#141c23; --fg:#e3eaf0; --muted:#93a3b1; --line:#26323d;
+  --accent:#3fb4d4; --accent-ink:#06222b; --term:#070b0f; --term-fg:#d6e2ea; --term-dim:#6f808e;
+  --ok:#5cc98d; --warn:#f0b057; --warn-bg:#2a2112; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0d1318; --panel:#141c23; --fg:#e3eaf0; --muted:#93a3b1; --line:#26323d;
+  --accent:#3fb4d4; --accent-ink:#06222b; --term:#070b0f; --term-fg:#d6e2ea; --term-dim:#6f808e;
+  --ok:#5cc98d; --warn:#f0b057; --warn-bg:#2a2112; color-scheme:dark }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-ui);padding-inline:16px;padding-block:28px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header h1{font-size:1.6rem;margin:0 0 4px;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:70ch}
+.grid{display:grid;grid-template-columns:minmax(0,380px) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.panel h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 14px;font-weight:600}
+form{display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{font-weight:600;font-size:.88rem}
+label small{font-weight:400;color:var(--muted)}
+input,select{font:15px var(--f-mono);padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+input.bad{border-color:var(--warn);background:var(--warn-bg)}
+.hint{font-size:.8rem;color:var(--muted)}
+.err{font-size:.8rem;color:var(--warn)}
+details{border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600;font-size:.88rem}
+details .inner{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.out{display:flex;flex-direction:column;gap:12px;min-width:0}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:12px var(--f-mono);padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.chip b{color:var(--fg);font-weight:600}
+button{font:600 14px var(--f-ui);border:0;border-radius:6px;padding:10px 16px;cursor:pointer;background:var(--accent);color:var(--accent-ink)}
+button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);padding:7px 12px;font-size:13px}
+pre.term{margin:0;background:var(--term);color:var(--term-fg);border-radius:8px;padding:16px;font:12.5px/1.55 var(--f-mono);overflow:auto;max-height:560px;white-space:pre}
+.toast{font-size:.85rem;color:var(--ok);min-height:1.2em}
+ol.steps{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+ol.steps code,p code{font:13px var(--f-mono);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+@media (max-width:860px){.cols{grid-template-columns:minmax(0,1fr)}}
+.panel p{margin:0 0 10px}
+pre.small{margin:0;background:var(--term);color:var(--term-fg);border-radius:6px;padding:10px 12px;font:12.5px var(--f-mono);overflow-x:auto}
+.copyline{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>Qumulex PCAP Capture Builder</h1>
+    <p>Fill in the capture details, then copy the block and paste it into the server after <code>sudo su</code>. It installs tshark and lftp only if missing, captures until you press Ctrl+C, uploads to the support FTP, and deletes the local file once the upload succeeds.</p>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="h-in">
+      <h2 id="h-in">Capture details</h2>
+      <form id="f" autocomplete="off">
+        <div class="field">
+          <label for="name">File name <small>(.pcap added automatically)</small></label>
+          <input id="name" placeholder="e.g. QX750334_camera">
+          <span class="hint">Use the ticket or server ID. Spaces become underscores.</span>
+        </div>
+        <div class="field">
+          <label for="ip">Device IP <small>(host filter)</small></label>
+          <input id="ip" placeholder="e.g. 192.168.10.20" inputmode="decimal">
+          <span class="err" id="ip-err" hidden></span>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="ifacesel">Interface</label>
+            <select id="ifacesel">
+              <option value="LAN" selected>LAN</option>
+              <option value="WAN">WAN</option>
+              <option value="Other">Other</option>
+            </select>
+            <input id="iface" placeholder="e.g. eth0, enp3s0" aria-label="Interface name" hidden>
+            <span class="err" id="iface-err" hidden>Type the interface name.</span>
+          </div>
+          <div class="field">
+            <label for="dur">Auto-stop <small>(sec)</small></label>
+            <input id="dur" placeholder="Ctrl+C" inputmode="numeric">
+          </div>
+        </div>
+        <details id="creds">
+          <summary>FTP password</summary>
+          <div class="inner">
+            <div class="field">
+              <label for="ftppw">FTP password <small>(supportftp)</small></label>
+              <input id="ftppw" type="password">
+              <span class="hint">Blank = lftp asks for it during upload. Remembered in this browser only.</span>
+            </div>
+          </div>
+        </details>
+      </form>
+    </section>
+
+    <section class="out" aria-labelledby="h-out">
+      <div class="panel">
+        <div class="bar">
+          <h2 id="h-out" style="margin:0">Paste into the server</h2>
+          <button id="copy" type="button">Copy command</button>
+        </div>
+        <div class="chips" id="chips" style="margin:12px 0"></div>
+        <pre class="term" id="cmd" tabindex="0"></pre>
+        <div class="toast" id="toast" role="status"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="cols">
+    <section class="panel">
+      <h2>Retrieve the file</h2>
+      <p><b>From FTP</b> (FileZilla, site <code>portaldan.qumulex.dev</code>, user <code>supportftp</code>): open the <code>files</code> folder, drag <code id="fn1">file.pcap</code> to your PC, then delete it from the server.</p>
+    </section>
+    <section class="panel">
+      <h2>What the block does</h2>
+      <ol class="steps">
+        <li>Stops if you are not root or the interface does not exist (lists the real ones).</li>
+        <li>Installs <code>tshark</code> and <code>lftp</code> only if missing. The "non-superusers capture" prompt is answered No automatically.</li>
+        <li>Creates the file in <code>/home/qadmin</code> with 777 permissions and starts the capture.</li>
+        <li>Ctrl+C stops tshark only. The script keeps going and uploads.</li>
+        <li>Uploads to the FTP <code>files/</code> folder, giving up after about a minute if the server can't reach it.</li>
+        <li>Deletes the local pcap only after a successful upload. If the upload fails, the file stays in <code>/home/qadmin</code>.</li>
+      </ol>
+    </section>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = { ftppw: "" };
+const $ = id => document.getElementById(id);
+const KEYS = ["name","ip","ifacesel","iface","dur","ftppw"];
+const store = {
+  get(k){ try{ return localStorage.getItem("qxpcap3."+k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem("qxpcap3."+k,v); }catch(e){} }
+};
+KEYS.forEach(k=>{ const v=store.get(k); if(v!==null) $(k).value=v; else if(DEFAULTS[k]) $(k).value=DEFAULTS[k]; });
+
+const sq = s => "'" + String(s).replace(/'/g, "'\\''") + "'";
+const ipOk = s => /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.test(s) && s.split(".").every(n=>+n<=255);
+
+function build(){
+  let name = $("name").value.trim().replace(/\.pcapn?g?$/i,"").replace(/[^A-Za-z0-9._-]+/g,"_") || "capture";
+  const file = name + ".pcap";
+  const path = "/home/qadmin/" + file;
+  const ip = $("ip").value.trim();
+  const sel = $("ifacesel").value;
+  $("iface").hidden = sel !== "Other";
+  const iface = (sel === "Other" ? $("iface").value.trim() : sel).replace(/[^A-Za-z0-9._:-]/g,"");
+  const ifaceMissing = sel === "Other" && !iface;
+  $("iface").classList.toggle("bad", ifaceMissing);
+  $("iface-err").hidden = !ifaceMissing;
+  const dur = $("dur").value.trim();
+  const ftppw = $("ftppw").value;
+
+  // validation
+  const ipBad = ip && !ipOk(ip);
+  $("ip").classList.toggle("bad", !!ipBad);
+  $("ip-err").hidden = !ipBad; $("ip-err").textContent = ipBad ? "That doesn't look like an IPv4 address." : "";
+
+  const parts = [];
+  if (ip && !ipBad) parts.push("host " + ip);
+  const filter = parts.join(" and ");
+  const durOk = /^\d+$/.test(dur) && +dur>0;
+
+  let tsh = `tshark -i "$IFACE"` + (filter ? ` -f "$FILTER"` : "") + (durOk ? ` -a duration:${dur}` : "") + ` -w "$F"`;
+  const lftpUser = ftppw ? sq("supportftp," + ftppw) : "supportftp";
+
+  const script =
+`set +H
+ cat > /tmp/qxcap.sh <<'QXCAP' && bash /tmp/qxcap.sh; rm -f /tmp/qxcap.sh
+F="${path}"
+IFACE="${iface}"
+FILTER="${filter}"
+export DEBIAN_FRONTEND=noninteractive
+[ "$(id -u)" -eq 0 ] || { echo "[x] Run sudo su first."; exit 1; }
+ip link show "$IFACE" >/dev/null 2>&1 || { echo "[x] Interface $IFACE not found. Available:"; ip -br link; exit 1; }
+if command -v tshark >/dev/null 2>&1; then echo "[ok] tshark already installed"; else
+  echo "[..] Installing tshark"
+  echo "wireshark-common wireshark-common/install-setuid boolean false" | debconf-set-selections
+  apt-get install -y tshark || { echo "[x] tshark install failed"; exit 1; }
+fi
+if command -v lftp >/dev/null 2>&1; then echo "[ok] lftp already installed"; else
+  echo "[..] Installing lftp"; apt-get install -y lftp || echo "[!] lftp install failed. Capture will still run; upload it manually."
+fi
+touch "$F" && chmod 777 "$F"
+echo
+echo "=== Capturing on $IFACE  filter: \${FILTER:-none}  ->  $F"
+echo "=== ${durOk ? `Stops automatically after ${dur}s, or press` : "Press"} Ctrl+C to stop and upload"
+echo
+trap ':' INT
+${tsh}
+trap - INT
+echo
+echo "[ok] Capture saved: $F ($(du -h "$F" | cut -f1))"
+UP=0
+if command -v lftp >/dev/null 2>&1; then
+  echo "[..] Uploading to portaldan.qumulex.dev/files"
+  lftp -u ${lftpUser} -e "set cmd:fail-exit yes; set net:timeout 20; set net:max-retries 2; set net:reconnect-interval-base 5; cd files; put $F; bye" portaldan.qumulex.dev && UP=1
+fi
+if [ "$UP" -eq 1 ]; then rm -f "$F"; echo "[ok] Uploaded to FTP files/${file} and removed local copy"
+else echo "[x] FTP upload failed. File kept at $F"; fi
+QXCAP`;
+
+  $("cmd").textContent = script;
+  $("chips").innerHTML =
+    `<span class="chip">file <b>${file}</b></span>` +
+    `<span class="chip">iface <b>${iface || "not set"}</b></span>` +
+    `<span class="chip">filter <b>${filter ? filter.replace(/</g,"&lt;") : "none (all traffic)"}</b></span>` +
+    `<span class="chip">stop <b>${durOk ? dur+"s / Ctrl+C" : "Ctrl+C"}</b></span>`;
+  $("fn1").textContent = file;
+  KEYS.forEach(k=>store.set(k,$(k).value));
+}
+
+async function copy(text, btn){
+  try { await navigator.clipboard.writeText(text); flash(btn,"Copied"); }
+  catch(e){
+    const r=document.createRange(); r.selectNodeContents($("cmd"));
+    const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+    flash(btn,"Selected — press Ctrl+C");
+  }
+}
+function flash(btn,msg){ const o=btn.textContent; btn.textContent=msg; $("toast").textContent = btn===$("copy") ? "Command copied. Paste it into the server's root shell." : ""; setTimeout(()=>{btn.textContent=o;},1600); }
+
+$("f").addEventListener("input", build);
+$("f").addEventListener("change", build);
+$("ifacesel").addEventListener("change", ()=>{ if($("ifacesel").value==="Other") $("iface").focus(); });
+$("f").addEventListener("submit", e=>e.preventDefault());
+$("copy").addEventListener("click", e=>copy($("cmd").textContent, e.currentTarget));
+build();
+</script>
+</body>
+</html>
